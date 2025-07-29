@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Report Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.4.0/docx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .section h2::before {
+            content: "📊";
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 50px;
+            text-align: center;
+            background: linear-gradient(135deg, #f8f9ff, #e8eeff);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background: linear-gradient(135deg, #e8eeff, #d8deff);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #fff8f8, #ffe8e8);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        .headers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .header-item {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .header-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(116, 185, 255, 0.4);
+        }
+
+        .header-item input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 184, 148, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 184, 148, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ddd;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-report {
+            background: linear-gradient(135deg, #fd79a8, #e84393);
+            box-shadow: 0 5px 15px rgba(253, 121, 168, 0.3);
+        }
+
+        .btn-report:hover {
+            box-shadow: 0 8px 25px rgba(253, 121, 168, 0.4);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, #6c5ce7, #5f3dc4);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .data-table tr:hover {
+            background: #e3f2fd;
+        }
+
+        .filter-row {
+            background: linear-gradient(135deg, #fdcb6e, #e17055) !important;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            font-size: 0.9rem;
+        }
+
+        .filter-select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .file-info {
+            background: linear-gradient(135deg, #55efc4, #00b894);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .file-info-text {
+            display: flex;
+            align-items: center;
+        }
+
+        .file-info-text::before {
+            content: "📄";
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .success-message::before {
+            content: "✅";
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Excel Report Generator</h1>
+            <p>Developed by Dr. Mazen Badawy – Doctorate of TEFL</p>
+        </div>
+
+        <div class="content">
+            <!-- File Upload Section -->
+            <div class="section">
+                <h2>Upload Excel File</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Click to upload or drag and drop your Excel file</div>
+                    <div class="upload-subtext">Supports .xlsx and .xls files</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+                </div>
+                <div id="fileInfo" class="file-info hidden">
+                    <div class="file-info-text">
+                        <span id="fileName"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Headers Selection Section -->
+            <div class="section hidden" id="headersSection">
+                <h2>Select Column Headers</h2>
+                <div id="headersGrid" class="headers-grid"></div>
+                <div class="controls">
+                    <button class="btn" id="selectBtn" disabled>Select Columns</button>
+                </div>
+            </div>
+
+            <!-- Data Preview and Filtering Section -->
+            <div class="section hidden" id="dataSection">
+                <h2>Filter Data</h2>
+                <div class="table-container">
+                    <table class="data-table" id="dataTable"></table>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-report" id="reportBtn">Generate Word Report</button>
+                </div>
+                <div id="successMessage" class="success-message hidden">
+                    Report generated successfully!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workbook = null;
+        let currentData = [];
+        let selectedHeaders = [];
+        let filteredData = [];
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const headersSection = document.getElementById('headersSection');
+        const dataSection = document.getElementById('dataSection');
+        const headersGrid = document.getElementById('headersGrid');
+        const selectBtn = document.getElementById('selectBtn');
+        const reportBtn = document.getElementById('reportBtn');
+        const dataTable = document.getElementById('dataTable');
+        const successMessage = document.getElementById('successMessage');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        fileInput.addEventListener('change', handleFileSelect);
+        selectBtn.addEventListener('click', showDataPreview);
+        reportBtn.addEventListener('click', generateReport);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            fileName.textContent = file.name;
+            fileInfo.classList.remove('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    currentData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    if (currentData.length > 0) {
+                        displayHeaders(currentData[0]);
+                        headersSection.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    alert('Error reading file. Please make sure it\'s a valid Excel file.');
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function displayHeaders(headers) {
+            headersGrid.innerHTML = '';
+            headers.forEach((header, index) => {
+                if (header) {
+                    const headerItem = document.createElement('div');
+                    headerItem.className = 'header-item';
+                    headerItem.innerHTML = `
+                        <input type="checkbox" id="header-${index}" value="${index}">
+                        <label for="header-${index}">${header}</label>
+                    `;
+                    headerItem.addEventListener('click', (e) => {
+                        if (e.target.type !== 'checkbox') {
+                            const checkbox = headerItem.querySelector('input[type="checkbox"]');
+                            checkbox.checked = !checkbox.checked;
+                        }
+                        updateSelectButton();
+                    });
+                    headersGrid.appendChild(headerItem);
+                }
+            });
+        }
+
+        function updateSelectButton() {
+            const checkedBoxes = document.querySelectorAll('#headersGrid input[type="checkbox"]:checked');
+            selectBtn.disabled = checkedBoxes.length === 0;
+        }
+
+        function showDataPreview() {
+            const checkedBoxes = document.querySelectorAll('#headersGrid input[type="checkbox"]:checked');
+            selectedHeaders = Array.from(checkedBoxes).map(cb => ({
+                index: parseInt(cb.value),
+                name: currentData[0][parseInt(cb.value)]
+            }));
+
+            filteredData = currentData.slice(1).map(row => 
+                selectedHeaders.reduce((obj, header) => {
+                    obj[header.name] = row[header.index] || '';
+                    return obj;
+                }, {})
+            );
+
+            createDataTable();
+            dataSection.classList.remove('hidden');
+        }
+
+        function createDataTable() {
+            let tableHTML = '<thead><tr>';
+            
+            // Add filter row
+            tableHTML += '<tr class="filter-row">';
+            selectedHeaders.forEach(header => {
+                const uniqueValues = [...new Set(filteredData.map(row => row[header.name]).filter(val => val))];
+                tableHTML += `<td>
+                    <select class="filter-select" data-column="${header.name}">
+                        <option value="">All ${header.name}</option>
+                        ${uniqueValues.map(val => `<option value="${val}">${val}</option>`).join('')}
+                    </select>
+                </td>`;
+            });
+            tableHTML += '</tr>';
+
+            // Add header row
+            selectedHeaders.forEach(header => {
+                tableHTML += `<th>${header.name}</th>`;
+            });
+            tableHTML += '</tr></thead><tbody id="tableBody">';
+            
+            // Add data rows
+            filteredData.forEach(row => {
+                tableHTML += '<tr>';
+                selectedHeaders.forEach(header => {
+                    tableHTML += `<td>${row[header.name] || ''}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody>';
+            dataTable.innerHTML = tableHTML;
+
+            // Add filter event listeners
+            document.querySelectorAll('.filter-select').forEach(select => {
+                select.addEventListener('change', applyFilters);
+            });
+        }
+
+        function applyFilters() {
+            const filters = {};
+            document.querySelectorAll('.filter-select').forEach(select => {
+                if (select.value) {
+                    filters[select.dataset.column] = select.value;
+                }
+            });
+
+            const tbody = document.getElementById('tableBody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                let showRow = true;
+                const cells = row.querySelectorAll('td');
+                
+                selectedHeaders.forEach((header, index) => {
+                    if (filters[header.name] && cells[index].textContent !== filters[header.name]) {
+                        showRow = false;
+                    }
+                });
+                
+                row.style.display = showRow ? '' : 'none';
+            });
+        }
+
+        function generateReport() {
+            reportBtn.innerHTML = '<span class="loading"></span>Generating...';
+            reportBtn.disabled = true;
+
+            // Wait a bit to ensure libraries are loaded
+            setTimeout(() => {
+                try {
+                    // Check if required libraries are loaded
+                    if (typeof docx === 'undefined') {
+                        alert('Word generation library failed to load. Please refresh the page and try again.');
+                        reportBtn.innerHTML = 'Generate Word Report';
+                        reportBtn.disabled = false;
+                        return;
+                    }
+
+                    if (typeof saveAs === 'undefined') {
+                        alert('File saving library failed to load. Please refresh the page and try again.');
+                        reportBtn.innerHTML = 'Generate Word Report';
+                        reportBtn.disabled = false;
+                        return;
+                    }
+
+                    // Get filtered data
+                    const visibleRows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => 
+                        row.style.display !== 'none'
+                    );
+
+                    const reportData = visibleRows.map(row => {
+                        const cells = row.querySelectorAll('td');
+                        const rowData = {};
+                        selectedHeaders.forEach((header, index) => {
+                            rowData[header.name] = cells[index].textContent.trim();
+                        });
+                        return rowData;
+                    });
+
+                    // Create sections - one for title page, then one for each record
+                    const sections = [];
+
+                    // Title page section
+                    sections.push({
+                        children: [
+                            new docx.Paragraph({
+                                children: [
+                                    new docx.TextRun({
+                                        text: "Data Report",
+                                        bold: true,
+                                        size: 48,
+                                        color: "2E74B5",
+                                    }),
+                                ],
+                                spacing: {
+                                    after: 600,
+                                },
+                                alignment: docx.AlignmentType.CENTER,
+                            }),
+                            new docx.Paragraph({
+                                children: [
+                                    new docx.TextRun({
+                                        text: `Generated by: Dr. Mazen Badawy – Doctorate of TEFL`,
+                                        italics: true,
+                                        size: 24,
+                                    }),
+                                ],
+                                alignment: docx.AlignmentType.CENTER,
+                                spacing: {
+                                    after: 400,
+                                },
+                            }),
+                            new docx.Paragraph({
+                                children: [
+                                    new docx.TextRun({
+                                        text: `Date: ${new Date().toLocaleDateString('en-US', { 
+                                            year: 'numeric', 
+                                            month: 'long', 
+                                            day: 'numeric' 
+                                        })}`,
+                                        size: 24,
+                                    }),
+                                ],
+                                alignment: docx.AlignmentType.CENTER,
+                                spacing: {
+                                    after: 400,
+                                },
+                            }),
+                            new docx.Paragraph({
+                                children: [
+                                    new docx.TextRun({
+                                        text: `Total Records: ${reportData.length}`,
+                                        bold: true,
+                                        size: 28,
+                                        color: "2E74B5",
+                                    }),
+                                ],
+                                alignment: docx.AlignmentType.CENTER,
+                                spacing: {
+                                    before: 800,
+                                },
+                            }),
+                        ],
+                        properties: {
+                            page: {
+                                margin: {
+                                    top: 1440,
+                                    right: 1440,
+                                    bottom: 1440,
+                                    left: 1440,
+                                },
+                            },
+                        },
+                    });
+
+                    // Create a section for each record
+                    reportData.forEach((record, index) => {
+                        const recordChildren = [
+                            new docx.Paragraph({
+                                children: [
+                                    new docx.TextRun({
+                                        text: `Record ${index + 1}`,
+                                        bold: true,
+                                        size: 32,
+                                        color: "2E74B5",
+                                    }),
+                                ],
+                                alignment: docx.AlignmentType.CENTER,
+                                spacing: {
+                                    after: 600,
+                                },
+                            }),
+                        ];
+
+                        // Add each field as a bullet point
+                        selectedHeaders.forEach(header => {
+                            const value = record[header.name] || 'N/A';
+                            recordChildren.push(
+                                new docx.Paragraph({
+                                    children: [
+                                        new docx.TextRun({
+                                            text: `${header.name}: `,
+                                            bold: true,
+                                            size: 24,
+                                            color: "333333",
+                                        }),
+                                        new docx.TextRun({
+                                            text: value,
+                                            size: 24,
+                                        }),
+                                    ],
+                                    bullet: {
+                                        level: 0,
+                                    },
+                                    spacing: {
+                                        after: 200,
+                                    },
+                                })
+                            );
+                        });
+
+                        // Add some spacing at the end of each record
+                        recordChildren.push(
+                            new docx.Paragraph({
+                                children: [
+                                    new docx.TextRun({
+                                        text: "",
+                                    }),
+                                ],
+                                spacing: {
+                                    after: 400,
+                                },
+                            })
+                        );
+
+                        sections.push({
+                            children: recordChildren,
+                            properties: {
+                                page: {
+                                    margin: {
+                                        top: 1440,
+                                        right: 1440,
+                                        bottom: 1440,
+                                        left: 1440,
+                                    },
+                                },
+                            },
+                        });
+                    });
+
+                    // Create Word document with multiple sections
+                    const doc = new docx.Document({
+                        sections: sections,
+                    });
+
+                    // Generate and download the document
+                    docx.Packer.toBlob(doc).then(blob => {
+                        const fileName = `Data_Report_${new Date().toISOString().split('T')[0]}.docx`;
+                        saveAs(blob, fileName);
+                        
+                        reportBtn.innerHTML = 'Generate Word Report';
+                        reportBtn.disabled = false;
+                        successMessage.classList.remove('hidden');
+                        
+                        setTimeout(() => {
+                            successMessage.classList.add('hidden');
+                        }, 3000);
+                    }).catch(error => {
+                        console.error('Error creating blob:', error);
+                        alert('Error generating Word document. Please try again.');
+                        reportBtn.innerHTML = 'Generate Word Report';
+                        reportBtn.disabled = false;
+                    });
+
+                } catch (error) {
+                    console.error('Error generating report:', error);
+                    alert('Error generating report: ' + error.message);
+                    reportBtn.innerHTML = 'Generate Word Report';
+                    reportBtn.disabled = false;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
